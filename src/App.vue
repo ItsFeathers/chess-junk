@@ -36,29 +36,32 @@ function toggleDrawer() {
     </v-navigation-drawer>
 
     <v-main>
-      <v-container
-        class="fill-height"
-        fluid
-      >
-        <v-row
-          align="center"
-          justify="center"
-        >
-          <v-col class="text-center">
-            <router-view/>
-          </v-col>
-        </v-row>
-      </v-container>
+      <router-view/>
     </v-main>
     <v-footer
       color="indigo"
       app
     >
-      <span class="white--text">&copy; {{ new Date().getFullYear() }}</span>
+    <span class="white--text">&copy; {{ new Date().getFullYear() }}</span>
     </v-footer>
   </v-app>
-
 </template>
 
-<style scoped>
+<style>
+.v-application {
+  width: 100vw;
+  margin: 0;
+}
+#app {
+  margin: 0;
+  padding: 0;
+  width: 100vw !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.v-main {
+  margin: 0;
+}
+
 </style>

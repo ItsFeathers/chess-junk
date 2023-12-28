@@ -17,19 +17,10 @@ const boardConfig: BoardConfig = {
 </script>
 
 <style lang="css" scoped>
-.board-container {
-  min-width: 100px;
-}
-
-.switch-center {
-  display: flex;
-  justify-content: center;
-}
 </style>
 
 <script lang="ts">
 import { Chess } from 'chess.js'
-import {Chessground} from 'chessground'
 import { SQUARES } from 'chess.js';
 
 export default {
