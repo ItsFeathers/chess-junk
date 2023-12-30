@@ -1,11 +1,11 @@
 <template>
   <v-container fluid>
     <v-row no-gutters>
-      <v-col cols="1"></v-col>
-      <v-col cols="2">
+      <v-col sm="0" cols="1"></v-col>
+      <v-col cols="12" md="2">
         <Engine :currentPosition="currentPosition" />
       </v-col>
-      <v-col cols="6">
+      <v-col cols="12" md="6">
         <TheChessboard v-on:move="handleMove"/>
       </v-col>
       <v-col cols="2">
@@ -44,6 +44,8 @@ onMounted(() => {
 const move = ref({})
 const history = ref([])
 const currentPosition = ref('')
+const currentEvalType = ref('cp')
+const currentEval = ref(0)
 
 function handleMove(moveEvent: any) {
   console.log(moveEvent)
