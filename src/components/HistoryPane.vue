@@ -1,34 +1,24 @@
 <template>
   <v-row no-gutters>
-    <v-col :key="index" v-for="historyItem, index in history" cols=6>
-      <v-sheet>{{ historyItem.san }}</v-sheet>
+    <v-col :key="index" v-for="historyItem, index in history" cols="6" v-bind:style="{cursor: 'pointer'}" :class="index == currentIndex ? 'current' : ''">
+      <v-sheet @click="goBack(index)">{{ historyItem.san }}</v-sheet>
     </v-col>
   </v-row>
 </template>
 
 <script setup lang="ts">
-import { defineProps } from 'vue';
-const props = defineProps(['history'])
+import { defineProps, defineEmits } from 'vue';
+const props = defineProps(['history', 'currentIndex'])
+const emit = defineEmits(['historyClick'])
+
+function goBack(index: number) {
+  console.log(props.history[index])
+  emit("historyClick", index)
+}
 
 </script>
 <script lang="ts">
 
-
-// var stockfish = new Worker(
-//   new URL('/stockfish-nnue-16.js', import.meta.url),
-//   {type: 'module'}
-// );
-
-// console.log(stockfish)
-
-// stockfish.addEventListener('message', function (e) {
-//   console.log(e.data);
-// });
-
-
-// stockfish.postMessage('uci');
-// stockfish.postMessage("position rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2")
-// stockfish.postMessage("go")
 
 interface IMove { 
   "color": string, 
@@ -47,4 +37,8 @@ interface IMove {
 
 
 <style lang="css" scoped>
+.current {
+  border: 3px solid;
+  border-color: black;
+}
 </style>
