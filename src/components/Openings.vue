@@ -2,93 +2,376 @@
   <v-container fluid>
     <v-row no-gutters>
       <v-col cols="0" md="3"></v-col>
-      <v-col cols="12" md="6">
+      <v-col cols="12" md="6" align="center">
+        <v-btn icon="mdi-step-backward-2" @click="backToBeginning" />
+        <v-btn icon="mdi-step-backward" @click="back" />
         <RepertoireUploader v-on:repertoire="updateRepertoire"/>
+        <v-btn icon="mdi-step-forward" @click="forward" />
+        <v-btn icon="mdi-step-forward-2" @click="forwardToEnd" />
       </v-col>
       <v-col sm="0" cols="3"></v-col>
     </v-row>
     <v-row no-gutters>
       <v-col sm="0" cols="1"></v-col>
-      <v-col cols="12" md="2">
-        <Engine :currentPosition="currentPosition" />
+      <v-col cols="12" md="2" align="center" justify="center">
+        <Engine v-if="mode != 'test'" :currentPosition="currentPosition" />
       </v-col>
       <v-col cols="12" md="6">
-        <Board :currentPosition="currentPosition" v-on:move="handleMove" :shapes="shapes"/>
+        <Board ref="board" :currentPosition="currentPosition" v-on:move="handleMove" :shapes="shapes" :player="color" :mode="mode"/>
       </v-col>
-      <v-col cols="6" md="1">
-        <HistoryPane :history="history" :currentIndex="currentIndex" v-on:historyClick="historyClicked" />
-      </v-col>
-      <v-col cols="6" md="1">
-        <Repertoire :repertoire="repertoire" :currentPosition="currentPosition" v-on:shapes="updateShapes"/>
-      </v-col>
+      <v-col cols="6" md="2">
+        <v-col v-if="mode !='test'" cols="12" align="center">
+          <v-btn @click="startTest()"><v-icon color="black"> mdi-human-male-board</v-icon> Test Me</v-btn>
+        </v-col>
+        <v-col v-else cols="12" align="center">
+          <v-btn @click="endTesting()"><v-icon color="black">mdi-file-document-check-outline</v-icon> Finish Test</v-btn>
+        </v-col>
+        <v-col cols="12" align="center" v-if="mode !='test'">
+          <v-btn @click="switchColors()"><v-icon color="black">mdi-chess-queen</v-icon> Switch Colors</v-btn>
+        </v-col>
 
+
+        <v-col cols="6" md="12">
+          <HistoryPane :history="history" :currentIndex="currentIndex" v-on:historyClick="historyClicked" />
+        </v-col>
+      </v-col>
+      <v-col cols="6" md="12">
+
+        <v-tabs v-model="tab" centered bg-color="primary">
+          <v-tab value="repertoire">
+            Edit Repertoire
+          </v-tab>
+          <v-tab value="results">
+            Test Results
+          </v-tab>
+          <v-tab value="lichess">
+            Lichess Games
+          </v-tab>
+          <v-spacer></v-spacer>
+        </v-tabs>
+        <v-window v-model="tab">
+          <v-window-item value="repertoire">
+            <v-card>
+              <Repertoire v-if="mode != 'test'" ref="repertoireView" :repertoire="repertoire" v-on:deleteMove="deleteMove" :currentPosition="currentPosition" v-on:shapes="updateShapes" v-on:make-move="makeMove" v-on:selectMove="selectMove" />
+            </v-card>
+          </v-window-item>
+          <v-window-item value="results">
+            <v-card>
+              <TestResultsPane :history="history" :currentIndex="currentIndex" :results="results" v-on:loadGame="loadGame" />
+            </v-card>
+          </v-window-item>
+          <v-window-item value="lichess">
+            <v-card>
+              <LichessStats />
+            </v-card>
+          </v-window-item>
+
+        </v-window>
+      </v-col>
     </v-row>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted  } from 'vue'
+import { ref, onMounted, computed, watch  } from 'vue'
 import HistoryPane from './HistoryPane.vue'
 import Engine from './Engine.vue';
 import Board from './Board.vue'
-import Repertoire from './Repertoire.vue'
+import Repertoire from './Repertoire.vue';
 import RepertoireUploader from './RepertoireUploader.vue';
 import 'vue3-chessboard/style.css';
+import TestResultsPane from './TestResultsPane.vue';
+import LichessStats from './LichessStats.vue'
 
+interface Option {
+  from: string;
+  to: string;
+  promotion: string;
+  notation: string;
+  fen_after: string;
+  friendly_notation: string;
+  turn: string;
+}
 
-onMounted(() => {
-  const boardConfig: Config = {
-    coordinates: true,
-    autoCastle: true,
-    orientation: 'black',
-    movable: {
-      free: true
-    }
-  }
-})
+interface IPosition {
+  options: Option[];
+  selection: Option | null;
+}
 
-type Position = {
-
+interface IResult {
+  result: number;
+  history: MoveEvent[];
+  finalMove: string;
 }
 
 type Shape = {}
 
-const repertoire = ref({} as Map<string, Position>)
-const move = ref({})
-const history = ref([])
-const currentPosition = ref('')
+type MoveEvent = {
+  color: string;
+  piece: string;
+  from: string;
+  to: string;
+  san: string;
+  flags: string;
+  lan: string;
+  before: string;
+  after: string;
+}
+const STARTING_POSITION = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+const repertoire = ref({"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq": {"options": [], "selection": null}})
+const history = ref([] as MoveEvent[])
+const currentPosition = ref("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 const shapes = ref([] as Shape[])
+const results = ref([] as IResult[])
+const streak = ref(0)
+
 const currentIndex = ref(-1)
+const board = ref()
+const repertoireView = ref()
+const mode = ref("teach")
+const color = ref("white")
 
-function handleMove(moveEvent: any) {
-  var newIdx = currentIndex.value + 1
+const tab = ref("")
+const tabs = ref(["History", "tests", "lichess"])
 
-  move.value = moveEvent
+const friendly_current_position = computed(() => {
+  if (currentPosition.value && repertoire.value) {
+    return toFriendlyNotation(currentPosition.value)
+  }
+  return "";
+});
+
+function switchColors() {
+  color.value = color.value == "white" ? "black" : "white"
+}
+
+function toFriendlyNotation(fullFen: string) {
+  var elements = fullFen.split(" ");
+  var sanitized = elements.slice(0, 3).join(" ");
+  return sanitized;
+}
+
+function handleMove(moveEvent: MoveEvent) {
+  if (mode.value == "teach") {
+    addMoveToRepertoire(friendly_current_position.value, moveEvent)
+    acceptMove(moveEvent)
+  } else if (mode.value == "test") {
+    if(!isFromPlayer(moveEvent)) {
+      acceptMove(moveEvent)
+      if(isEndOfLine(moveEvent)) {
+        endTest(moveEvent, "Line Completed")
+      }
+    } else if(isRepertoireMove(moveEvent.san)) {
+      streak.value += 1
+      acceptMove(moveEvent)
+      if(isEndOfLine(moveEvent)) {
+        endTest(moveEvent, "Line Completed")
+      } else {
+        getComputerReply()
+      }
+    } else {
+      rejectMove(moveEvent)
+      endTest(moveEvent, "Player Deviated")
+    }
+  }
+}
+
+function startTest() {
+  mode.value = "test"
+}
+
+function endTesting() {
+  mode.value = "teach"  
+}
+
+function rejectMove(moveEvent: MoveEvent) {
+  setTimeout(() => {
+    board.value.refreshPosition(moveEvent.before)
+  }, 0);
+}
+
+function isEndOfLine(moveEvent: MoveEvent) {
+  const positionAfter = toFriendlyNotation(moveEvent.after)
+  if(!repertoire.value[positionAfter]) {
+    return true
+  }
+  console.log("positionFound")
+
+  // remember the player on move now is the opposite color so this is checking for engine having a move
+  console.log(`${color.value} - ${moveEvent.color}`)
+  if(color.value.startsWith(moveEvent.color)) {
+    console.log("positionFound - computer")
+    console.log(repertoire.value[positionAfter].options)
+    return repertoire.value[positionAfter].options.length == 0
+  } else {
+    console.log("positionFound - human")
+    console.log(repertoire.value[positionAfter].selection)
+    return repertoire.value[positionAfter].selection == null
+  }
+}
+
+function loadGame(result: IResult) {
+  history.value = result.history
+  if(result.history.length == 0) {
+    currentPosition.value = STARTING_POSITION
+  } else {
+    currentPosition.value = history.value[history.value.length-1].after
+  }
+  currentIndex.value = history.value.length-1
+}
+
+function acceptMove(moveEvent: MoveEvent) {
   currentPosition.value = moveEvent.after
+  addMoveToHistory(moveEvent)
+}
 
-  if(history.value.length == newIdx) {
+function isFromPlayer(moveEvent: MoveEvent) {
+  return color.value.startsWith(moveEvent.color)
+}
+
+function getComputerReply() {
+  var options = repertoire.value[friendly_current_position.value]?.options
+  var option = Math.floor(Math.random() * options.length)
+  const reply = options[option]
+  board.value.playMove(reply.friendly_notation)
+}
+
+function endTest(finalMove: MoveEvent, result: string) {
+  results.value.push({
+    history: history.value,
+    streak: streak.value,
+    finalMove: finalMove,
+    result: result
+  } as IResult)
+  streak.value = 0
+  clearHistory()
+}
+
+function clearHistory() {
+  history.value = []
+  currentIndex.value = -1
+  backToBeginning()
+}
+
+function isRepertoireMove(san: string) {
+  return repertoire.value[friendly_current_position.value].selection.friendly_notation == san
+}
+
+function addMoveToHistory(moveEvent: any) {
+  currentIndex.value += 1
+  if(history.value.length == currentIndex.value) {
     history.value.push(moveEvent)
   } else {
-    console.log(history.value[currentIndex.value], moveEvent)
     if(history.value[currentIndex.value].san != moveEvent.san) {
-      history.value = history.value.slice(0, newIdx)
+      history.value = history.value.slice(0, currentIndex.value)
       history.value.push(moveEvent)
     }
   }
-  currentIndex.value += 1
 }
 
-function updateRepertoire(newRepertoire: Map<string, Position>) {
+function addMoveToRepertoire(friendlyFenBefore: string, moveEvent: MoveEvent) {
+  const oldOptions = repertoire.value[friendlyFenBefore].options
+  
+  const matches = oldOptions?.filter((option) => option.friendly_notation == moveEvent.san)
+  if(!(matches && matches?.length > 0)) {
+    const newOption = {
+      from: moveEvent.from,
+      to: moveEvent.to,
+      promotion: '',
+      notation: moveEvent.lan,
+      fen_after: moveEvent.after,
+      friendly_notation: moveEvent.san,
+      turn: moveEvent.color,
+    }
+    if (color.value.startsWith(moveEvent.color) && (!oldOptions || oldOptions.length == 0)) {
+      repertoire.value[friendlyFenBefore].selection = newOption
+    }
+    repertoire.value[friendlyFenBefore].options.push(newOption)
+  }
+  if (!(toFriendlyNotation(moveEvent.after) in repertoire.value)) {
+    repertoire.value[toFriendlyNotation(moveEvent.after)] = {options: [], selection: null}
+  }
+}
+
+watch (() => mode.value, (newValue, oldValue) => {updateMode(newValue, oldValue)})
+function updateMode(newValue, oldValue) {
+  clearHistory()
+  updateShapes(shapes.value)
+}
+
+function updateRepertoire(newRepertoire: Map<string, IPosition>) {
   repertoire.value = newRepertoire
+  repertoireView.value.emitShapes()
 }
 
 function updateShapes(newShapes: Shape[]) {
-  shapes.value = newShapes
+  if(mode.value == "teach") {
+    shapes.value = newShapes
+  } else {
+    shapes.value = []
+  }
 }
 
 function historyClicked(index: number) {
   currentPosition.value = history.value[index].after
   currentIndex.value = index
+}
+
+function backToBeginning() {
+  currentIndex.value = -1
+  currentPosition.value = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+}
+
+function back() {
+  if(currentIndex.value <= 0) {
+    backToBeginning()
+    return
+  }
+
+  currentIndex.value -= 1
+  currentPosition.value = history.value[currentIndex.value].after
+}
+
+function forward() {
+  if(currentIndex.value >= history.value.length - 1) {
+    forwardToEnd()
+    return
+  }
+
+  currentIndex.value += 1
+  currentPosition.value = history.value[currentIndex.value].after
+}
+
+function forwardToEnd() {
+  currentIndex.value = history.value.length - 1
+  currentPosition.value = history.value[history.value.length - 1].after
+}
+
+function deleteMove(moveSelection: MoveEvent) {
+  if (!friendly_current_position.value) {
+    return
+  }
+  if (repertoire.value[friendly_current_position.value]) {
+    repertoire.value[friendly_current_position.value].options = repertoire.value[friendly_current_position.value].options.filter((option) => option.friendly_notation != moveSelection.san)
+  }
+  repertoireView.value.emitShapes()
+}
+function makeMove(moveSelection: MoveEvent) {
+  board.value?.playMove(moveSelection.san)
+  repertoireView.value.emitShapes()
+}
+function selectMove(moveSelection: any) {
+  const currentRepertiorePosition: IPosition = repertoire.value[friendly_current_position.value]
+  if (!currentRepertiorePosition) {
+    return
+  }
+
+  if (moveSelection) {
+    currentRepertiorePosition.selection = currentRepertiorePosition.options.filter((option) => option.friendly_notation == moveSelection.san)[0]
+  } else {
+    currentRepertiorePosition.selection = null
+  }
+  repertoireView.value.emitShapes()
 }
 
 </script>

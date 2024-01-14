@@ -1,33 +1,22 @@
 <template>
-  <v-row class="ma-2">
-    <v-col v-if="selection" class="selected ma-1" cols="12">
-      <v-row justify="space-between">
-        {{ selection.friendly_notation }}
-        <v-btn density="compact" icon="mdi-magnify" v-on:click="make_move(item)" />
-        <v-btn
-          density="compact"
-          icon="mdi-check-circle-outline"
-          v-on:click="select_move(item)"
-        />
-        <v-btn density="compact" icon="mdi-delete" v-on:click="deleteMove(item)" />
-      </v-row>
-    </v-col>
+  <v-row class="ma-2">   
     <v-col
-      class="option ma-1"
       v-for="option in options"
       :key="option.friendly_notation"
       cols="12"
     >
-      <v-row justify="space-between">
-        {{ option.friendly_notation }}
-        <v-btn density="compact" icon="mdi-magnify" v-on:click="make_move(item)" />
-        <v-btn
-          density="compact"
-          icon="mdi-check-circle-outline"
-          v-on:click="select_move(item)"
-        />
-        <v-btn density="compact" icon="mdi-delete" v-on:click="deleteMove(item)" />
-      </v-row>
+      <v-card
+        :class="(selection?.friendly_notation == option.friendly_notation ? 'selected' : 'option') "
+      >
+        <v-card-title>{{ option.friendly_notation }}</v-card-title>
+        <v-card-actions>
+            <v-btn>
+              <v-btn density="compact" icon="mdi-magnify" v-on:click="makeMove(option.friendly_notation)" />
+              <v-btn density="compact" icon="mdi-check-circle-outline" v-on:click="selectMove(option.friendly_notation)" />
+              <v-btn density="compact" icon="mdi-delete" v-on:click="deleteMove(option.friendly_notation)" />
+            </v-btn>
+          </v-card-actions>
+      </v-card>
     </v-col>
   </v-row>
 </template>
@@ -36,7 +25,11 @@
 import { watch, defineProps, defineEmits, computed } from "vue";
 
 const props = defineProps(["repertoire", "currentPosition"]);
-const emit = defineEmits(["move", "shapes"]);
+const emit = defineEmits(["makeMove", "selectMove", "deleteMove", "shapes"]);
+
+watch(() => props.currentPosition, (newValue, oldValue) => {
+  emitShapes()
+})
 
 const friendly_current_position = computed(() => {
   if (props.currentPosition && props.repertoire) {
@@ -60,8 +53,7 @@ const options = computed(() => {
 
 const selection = computed(() => {
   if (
-    props.repertoire &&
-    friendly_current_position &&
+    props.repertoire && friendly_current_position &&
     friendly_current_position.value in props.repertoire &&
     props.repertoire[friendly_current_position.value]
   ) {
@@ -70,9 +62,18 @@ const selection = computed(() => {
   return null;
 });
 
-watch(() => options, (newValue, oldValue) => {emitShapes()})
-watch(() => props.currentPosition, (newValue, oldValue) => {emitShapes()})
+function makeMove(san: string) {
+  emit('makeMove', san)
+}
 
+function selectMove(san: string) {
+  emit("selectMove", san == selection.value?.san ? null : san)
+  
+}
+
+function deleteMove(san: string) {
+  emit("deleteMove", san)
+}
 
 type shape = {
   orig: string;
@@ -99,13 +100,15 @@ function emitShapes() {
   }
   emit("shapes", shapes);
 }
+
+defineExpose({emitShapes,})
 </script>
 
 <style lang="css" scoped>
 .selected {
-  background-color: #00ff00;
+  background-color: #66ff66;
 }
 .option {
-  background-color: #ffff00;
+  background-color: #6666ff;
 }
 </style>

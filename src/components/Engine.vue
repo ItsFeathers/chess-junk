@@ -1,6 +1,8 @@
 <template>
-  <v-row no-gutters v-for="engineOutput in engineOutputs" :key="engineOutput.multipv">
-    <v-sheet>{{ engineOutput.topMove }} {{ engineOutput.score }} - {{ engineOutput.scoreType }}</v-sheet>
+  <v-row no-gutters>
+    <v-col cols="4" md="12" v-for="engineOutput in engineOutputs" :key="engineOutput.multipv">
+      <v-sheet>{{ engineOutput.topMove }} {{ engineOutput.score }} - {{ engineOutput.scoreType }}</v-sheet>
+    </v-col>
   </v-row>
 </template>
 
