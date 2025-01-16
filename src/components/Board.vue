@@ -27,7 +27,10 @@ function handleBoardCreated(boardApi: BoardApi) {
 }
 
 function playMove(move) {
-  boardAPI.value?.move(move)
+  console.log(boardAPI.value.getFen())
+  console.log(move)
+
+  return boardAPI.value?.move(move)
 }
 
 watch (() => props.shapes, (newValue, oldValue) => {drawShapes()})
@@ -49,14 +52,11 @@ function updateBoard() {
 }
 
 watch (() => props.currentPosition, (newValue, oldValue) => {
-  console.log(`${newValue}`)
-  console.log(`${oldValue}`)
-  console.log(`${currentPosition.value}`)
   setPosition(newValue)
 })
 function setPosition(position:string) {
   if(position != boardAPI.value.getFen()) {
-    boardAPI.value?.setPosition(props.currentPosition)
+    boardAPI.value?.setPosition(position)
   }
   drawShapes()
 }

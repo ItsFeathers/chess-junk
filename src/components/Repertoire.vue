@@ -1,21 +1,31 @@
 <template>
-  <v-row class="ma-2">   
-    <v-col
-      v-for="option in options"
-      :key="option.friendly_notation"
-      cols="12"
-    >
+  <v-row class="ma-2">
+    <v-col v-for="option in options" :key="option.friendly_notation" cols="12">
       <v-card
-        :class="(selection?.friendly_notation == option.friendly_notation ? 'selected' : 'option') "
+        :class="
+          selection?.friendly_notation == option.friendly_notation ? 'selected' : 'option'
+        "
       >
         <v-card-title>{{ option.friendly_notation }}</v-card-title>
         <v-card-actions>
-            <v-btn>
-              <v-btn density="compact" icon="mdi-magnify" v-on:click="makeMove(option.friendly_notation)" />
-              <v-btn density="compact" icon="mdi-check-circle-outline" v-on:click="selectMove(option.friendly_notation)" />
-              <v-btn density="compact" icon="mdi-delete" v-on:click="deleteMove(option.friendly_notation)" />
-            </v-btn>
-          </v-card-actions>
+          <v-btn>
+            <v-btn
+              density="compact"
+              icon="mdi-magnify"
+              v-on:click="makeMove(option.friendly_notation)"
+            />
+            <v-btn
+              density="compact"
+              icon="mdi-check-circle-outline"
+              v-on:click="selectMove(option.friendly_notation)"
+            />
+            <v-btn
+              density="compact"
+              icon="mdi-delete"
+              v-on:click="deleteMove(option.friendly_notation)"
+            />
+          </v-btn>
+        </v-card-actions>
       </v-card>
     </v-col>
   </v-row>
@@ -27,9 +37,12 @@ import { watch, defineProps, defineEmits, computed } from "vue";
 const props = defineProps(["repertoire", "currentPosition"]);
 const emit = defineEmits(["makeMove", "selectMove", "deleteMove", "shapes"]);
 
-watch(() => props.currentPosition, (newValue, oldValue) => {
-  emitShapes()
-})
+watch(
+  () => props.currentPosition,
+  (newValue, oldValue) => {
+    emitShapes();
+  }
+);
 
 const friendly_current_position = computed(() => {
   if (props.currentPosition && props.repertoire) {
@@ -53,7 +66,8 @@ const options = computed(() => {
 
 const selection = computed(() => {
   if (
-    props.repertoire && friendly_current_position &&
+    props.repertoire &&
+    friendly_current_position &&
     friendly_current_position.value in props.repertoire &&
     props.repertoire[friendly_current_position.value]
   ) {
@@ -63,16 +77,15 @@ const selection = computed(() => {
 });
 
 function makeMove(san: string) {
-  emit('makeMove', san)
+  emit("makeMove", san);
 }
 
 function selectMove(san: string) {
-  emit("selectMove", san == selection.value?.san ? null : san)
-  
+  emit("selectMove", san == selection.value?.san ? null : san);
 }
 
 function deleteMove(san: string) {
-  emit("deleteMove", san)
+  emit("deleteMove", san);
 }
 
 type shape = {
@@ -84,8 +97,8 @@ type shape = {
 
 function emitShapes() {
   var shapes = [] as shape[];
-  if(!options.value) {
-    return
+  if (!options.value) {
+    return;
   }
   for (const option of options.value) {
     var optionShape = {} as shape;
@@ -101,7 +114,7 @@ function emitShapes() {
   emit("shapes", shapes);
 }
 
-defineExpose({emitShapes,})
+defineExpose({ emitShapes });
 </script>
 
 <style lang="css" scoped>

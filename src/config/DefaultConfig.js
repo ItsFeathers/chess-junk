@@ -17,6 +17,8 @@ export const initialPos = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
 export const initialPosChessJS =
   'rnbqkbnr/pppppppp/pppppppp/pppppppp/pppppppp/pppppppp/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
+export const showExperimental = true;
+
 // lichess default conf
 export const defaultBoardConfig = {
   fen: initialPosChessJS,

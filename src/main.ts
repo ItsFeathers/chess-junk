@@ -1,5 +1,5 @@
 import './assets/main.css'
-
+import "reflect-metadata";
 
 import '@mdi/font/css/materialdesignicons.css'
 import 'vuetify/styles'

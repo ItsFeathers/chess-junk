@@ -29,8 +29,6 @@
         <v-col cols="12" align="center" v-if="mode !='test'">
           <v-btn @click="switchColors()"><v-icon color="black">mdi-chess-queen</v-icon> Switch Colors</v-btn>
         </v-col>
-
-
         <v-col cols="6" md="12">
           <HistoryPane :history="history" :currentIndex="currentIndex" v-on:historyClick="historyClicked" />
         </v-col>
@@ -130,6 +128,7 @@ const board = ref()
 const repertoireView = ref()
 const mode = ref("teach")
 const color = ref("white")
+const annotations = ref([])
 
 const tab = ref("")
 const tabs = ref(["History", "tests", "lichess"])
@@ -171,7 +170,9 @@ function handleMove(moveEvent: MoveEvent) {
       }
     } else {
       rejectMove(moveEvent)
-      endTest(moveEvent, "Player Deviated")
+      setTimeout(() => {
+        endTest(moveEvent, "Player Deviated")
+      }, 2000)
     }
   }
 }
@@ -188,6 +189,21 @@ function rejectMove(moveEvent: MoveEvent) {
   setTimeout(() => {
     board.value.refreshPosition(moveEvent.before)
   }, 0);
+  shapes.value = [{ "brush": "red", "orig": moveEvent.from, "dest": moveEvent.to } ]
+
+  const validMoves = getValidMoves(moveEvent.before)
+  for(let validMoveIndex in validMoves) {
+    shapes.value.push({ "brush": "green", "orig": validMoves[validMoveIndex].from, "dest": validMoves[validMoveIndex].to })
+  }
+}
+
+function getValidMoves(before: string) {
+  if(toFriendlyNotation(before) in repertoire.value) {
+    if(repertoire.value[toFriendlyNotation(before)].selection) {
+      const selection = repertoire.value[toFriendlyNotation(before)].selection;
+      return [selection];
+    }
+  }
 }
 
 function isEndOfLine(moveEvent: MoveEvent) {
@@ -218,6 +234,7 @@ function loadGame(result: IResult) {
     currentPosition.value = history.value[history.value.length-1].after
   }
   currentIndex.value = history.value.length-1
+  annotations.value = [result.finalMove]
 }
 
 function acceptMove(moveEvent: MoveEvent) {
@@ -233,7 +250,9 @@ function getComputerReply() {
   var options = repertoire.value[friendly_current_position.value]?.options
   var option = Math.floor(Math.random() * options.length)
   const reply = options[option]
-  board.value.playMove(reply.friendly_notation)
+  console.log(reply)
+  board.value.refreshPosition(currentPosition.value)
+  console.log(board.value.playMove(reply.friendly_notation))
 }
 
 function endTest(finalMove: MoveEvent, result: string) {
@@ -245,6 +264,10 @@ function endTest(finalMove: MoveEvent, result: string) {
   } as IResult)
   streak.value = 0
   clearHistory()
+  updateShapes([])
+  if (!playerToMove()) {
+    getComputerReply()
+  }
 }
 
 function clearHistory() {
@@ -297,6 +320,17 @@ watch (() => mode.value, (newValue, oldValue) => {updateMode(newValue, oldValue)
 function updateMode(newValue, oldValue) {
   clearHistory()
   updateShapes(shapes.value)
+  if (!playerToMove() && mode.value == "test") {
+    getComputerReply()
+  }
+}
+
+function playerToMove() {
+  if(history.value.length == 0) {
+    return color.value == "white"
+  } else {
+    return !color.value.startsWith(history.value[history.value.length - 1].color)
+  }
 }
 
 function updateRepertoire(newRepertoire: Map<string, IPosition>) {
@@ -306,6 +340,11 @@ function updateRepertoire(newRepertoire: Map<string, IPosition>) {
 
 function updateShapes(newShapes: Shape[]) {
   if(mode.value == "teach") {
+    for (let idx=0; idx < annotations.value.length; ++idx) {
+      if (toFriendlyNotation(annotations.value[idx].before) == friendly_current_position.value) {
+        newShapes.push( { "brush": "red", "orig": annotations.value[idx].from, "dest": annotations.value[idx].to } )
+      }
+    }
     shapes.value = newShapes
   } else {
     shapes.value = []
