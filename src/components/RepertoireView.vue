@@ -1,9 +1,9 @@
 <template>
   <v-row class="ma-2">
-    <v-col v-for="option in options" :key="option.friendly_notation" cols="12">
+    <v-col v-for="option in options" :key="option.friendly_notation" cols="2">
       <v-card
         :class="
-          selection?.friendly_notation == option.friendly_notation ? 'selected' : 'option'
+          selection[0]?.friendly_notation == option.friendly_notation ? 'selected' : 'option'
         "
       >
         <v-card-title>{{ option.friendly_notation }}</v-card-title>
@@ -33,8 +33,18 @@
 
 <script setup lang="ts">
 import { watch, defineProps, defineEmits, computed } from "vue";
+import { Repertoire } from "./dom/repertoire";
 
-const props = defineProps(["repertoire", "currentPosition"]);
+const props = defineProps({
+  repertoire: {
+    type: Repertoire,
+    required: true,
+  },
+  currentPosition: {
+    type: String,
+    required: true,
+  },
+});
 const emit = defineEmits(["makeMove", "selectMove", "deleteMove", "shapes"]);
 
 watch(
@@ -54,24 +64,15 @@ const friendly_current_position = computed(() => {
 });
 
 const options = computed(() => {
-  if (
-    props.repertoire &&
-    friendly_current_position &&
-    friendly_current_position.value in props.repertoire
-  ) {
-    return props.repertoire[friendly_current_position.value].options;
+  if (props.repertoire.containsPosition(friendly_current_position.value)) {
+    return props.repertoire.getOpponentMoves(friendly_current_position.value);
   }
   return null;
 });
 
 const selection = computed(() => {
-  if (
-    props.repertoire &&
-    friendly_current_position &&
-    friendly_current_position.value in props.repertoire &&
-    props.repertoire[friendly_current_position.value]
-  ) {
-    return props.repertoire[friendly_current_position.value].selection;
+  if (props.repertoire.containsPosition(friendly_current_position.value)) {
+    return props.repertoire.getPlayerMoves(friendly_current_position.value);
   }
   return null;
 });
@@ -81,7 +82,11 @@ function makeMove(san: string) {
 }
 
 function selectMove(san: string) {
-  emit("selectMove", san == selection.value?.san ? null : san);
+  if (!props.repertoire.isRepertoireMove(friendly_current_position.value, san)) {
+    emit("selectMove", san);
+  } else {
+    emit("selectMove", null);
+  }
 }
 
 function deleteMove(san: string) {
@@ -102,7 +107,7 @@ function emitShapes() {
   }
   for (const option of options.value) {
     var optionShape = {} as shape;
-    if (option.friendly_notation == selection.value?.friendly_notation) {
+    if (selection.value && selection.value.length && option.friendly_notation == selection.value[0].friendly_notation) {
       optionShape.brush = "green";
     } else {
       optionShape.brush = "blue";

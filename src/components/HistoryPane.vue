@@ -31,7 +31,6 @@ const pairedMoves = computed(() => {
 });
 
 function goBack(index: number) {
-  console.log(props.history[index])
   emit("historyClick", index)
 }
 

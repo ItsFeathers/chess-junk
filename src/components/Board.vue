@@ -27,9 +27,6 @@ function handleBoardCreated(boardApi: BoardApi) {
 }
 
 function playMove(move) {
-  console.log(boardAPI.value.getFen())
-  console.log(move)
-
   return boardAPI.value?.move(move)
 }
 
@@ -62,7 +59,6 @@ function setPosition(position:string) {
 }
 
 function refreshPosition(position: string) {
-  console.log(position)
   setPosition(position)
 }
 

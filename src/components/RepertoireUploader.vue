@@ -5,7 +5,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, defineProps, defineEmits } from 'vue'
-import { loadRepertoire } from './repertoire';
+import { loadRepertoire } from './dom/repertoire';
 
 const emit = defineEmits(['repertoire']);
 const uploader = ref(null)
@@ -22,8 +22,8 @@ function selectFile(event: any) {
   reader.readAsText(file);
   reader.onload = () => {
     repertoire.value = JSON.parse(reader.result);
-    loadRepertoire(repertoire.value)
-    emit("repertoire", repertoire.value)
+    let parsedRepertoire = loadRepertoire(repertoire.value)
+    emit("repertoire", parsedRepertoire)
   }
 }
 
