@@ -25,6 +25,7 @@ export class Option {
 
 export class Position{
     selection: Option | null = null;
+    alternative_selections: Option[] = []
 
     @Type(() => Option)
     options: Option[] = [];
@@ -56,6 +57,7 @@ class Repertoire {
 
     constructor(data: any) {
         this.positions = new PositionMap(data)
+        this.fixUp()
     }
 
     getPositions() {
@@ -108,11 +110,55 @@ class Repertoire {
         if (!position) {
             return []
         }
-        if (position.selection) {
-            return [position.selection]
+        return position.alternative_selections
+    }
+
+    addAlternative(fen: string, san: string) {
+        if (this.isRepertoireMove(fen, san)) {
+            return
+        }
+        let matches = this.getOpponentMoves(fen).filter((option) => option.friendly_notation == san)
+        let position = this.getPosition(fen)
+        if (position) {
+            position.alternative_selections = position.alternative_selections.concat(matches)
+            if(!this.hasMainMove(fen, san) && matches.length > 0) {
+                position.selection = matches[0]
+            }
+        }
+    }
+    hasMainMove(fen: string, san: string): boolean {
+        return this.getMainMove(fen) != null
+    }
+
+    removeAlternative(fen: string, san: string) {
+        let position = this.getPosition(fen)
+        if (position) {
+            position.alternative_selections = this.getAlternatives(fen)?.filter((option) => option.friendly_notation != san)
+        }
+        if (this.isMainMove(fen, san)) {
+            this.setMainMove(fen, null)
+        }
+    }
+    getAlternatives(fen: string) {
+        let position = this.getPosition(fen)
+        if (position) {
+            return position.alternative_selections
         } else {
             return []
         }
+    }
+
+    getMainMove(fen: string): Option | null {
+        let position = this.getPosition(fen)
+        if (!position) {
+            return null;
+        }
+        return position.selection
+    }
+
+    isMainMove(fen: string, san: string): boolean {
+        let mainMove = this.getMainMove(fen);
+        return mainMove?.friendly_notation == san        
     }
 
     hasPlayerMove(fen: string): boolean {
@@ -132,9 +178,9 @@ class Repertoire {
     }
 
     isRepertoireMove(position: string, san: string) {
-        return (
-            this.positions.positions.get(position)?.selection?.friendly_notation == san
-        );
+        let moves = this.getPlayerMoves(position);
+        let matches = moves.filter((option) => option.friendly_notation == san)
+        return matches && matches.length > 0
     }
 
     isOpponentMove(position: string, san: string) {
@@ -144,16 +190,42 @@ class Repertoire {
 
     setMainMove(fen: string, san: string | null) {
         const position = this.getPosition(fen)
-
         if (!position) {
             return;
         }
-        if (san) {
-            position.selection = position.options.filter(
-                (option) => option.friendly_notation == san
-            )[0];
+        if (!san) {
+            this.unsetMainMove(fen)
+            return;
+        }
+
+        // Determine if we have only a single main move, or something else
+        let hasMultipleOptions = this.getPlayerMoves(fen).length > 1
+        position.selection = position.options.filter((option) => option.friendly_notation == san)[0];
+
+        if (!hasMultipleOptions) {
+            position.alternative_selections = [position.selection]
+            }
+        }
+
+    unsetMainMove(fen: string) {
+        const position = this.getPosition(fen)
+        if (!position) {
+            return;
+        }
+
+        let oldMainMove = this.getMainMove(fen)
+        if (!oldMainMove) {
+            return
+        } 
+
+        // unset main move
+        position.selection = null
+        let alternatives = this.getAlternatives(fen);
+        let otherAlternatives = alternatives.filter((option) => option.friendly_notation != oldMainMove.friendly_notation);
+        if (otherAlternatives.length == 0) {
+            position.alternative_selections = []
         } else {
-            position.selection = null
+            position.selection = otherAlternatives[0]
         }
     }
 
@@ -168,11 +240,26 @@ class Repertoire {
             (option) => option.friendly_notation != san
         );
 
+        position.alternative_selections = position.alternative_selections.filter(
+            (option) => option.friendly_notation != san
+        );
+
         if (position.selection && position.selection.friendly_notation == san) {
             position.selection = null
+            if (position.alternative_selections.length > 0) {
+                position.selection = position.alternative_selections[0]
+            }
         }
     }
 
+    fixUp() {
+        for (const [key, position] of this.positions.positions.entries()) {
+            let sel = position.selection?.friendly_notation
+            if (sel) {
+                this.addAlternative(key, sel)
+            }
+        }
+    }
 }
 
 function toFriendlyNotation(fullFen: string) {

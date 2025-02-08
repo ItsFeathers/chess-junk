@@ -118,7 +118,90 @@ describe('Repertoire', () => {
     expect(repertoire.isOpponentMove(startPosition, "e4")).false
     expect(repertoire.isRepertoireMove(startPosition, "e4")).false
   })
+  it('allows assigning as alternative move', () => {
+    let repertoire = createEmptyRepertoire()
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "e4"), "w")
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "d4"), "w")
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "c4"), "w")
 
+    expect(repertoire.isRepertoireMove(startPosition, "e4")).true
+    expect(repertoire.isRepertoireMove(startPosition, "c4")).false
+    repertoire.addAlternative(startPosition, "c4")
+    expect(repertoire.isRepertoireMove(startPosition, "e4")).true
+    expect(repertoire.isRepertoireMove(startPosition, "c4")).true
+
+    expect(repertoire.isRepertoireMove(startPosition, "c4")).true
+    expect(repertoire.isMainMove(startPosition, "e4")).true
+    expect(repertoire.isMainMove(startPosition, "c4")).false
+  })  
+  it('Allows deletion of alternative', () => {
+    let repertoire = createEmptyRepertoire()
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "e4"), "w")
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "d4"), "w")
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "c4"), "w")
+
+    expect(repertoire.isRepertoireMove(startPosition, "e4")).true
+    expect(repertoire.isRepertoireMove(startPosition, "c4")).false
+    repertoire.deleteMove(startPosition, "c4")
+
+    expect(repertoire.isRepertoireMove(startPosition, "e4")).true
+    expect(repertoire.isRepertoireMove(startPosition, "c4")).false
+
+    expect(repertoire.isMainMove(startPosition, "e4")).true
+    expect(repertoire.isMainMove(startPosition, "c4")).false
+  })
+  it('Allows deletion of main move when alternative present', () => {
+    let repertoire = createEmptyRepertoire()
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "e4"), "w")
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "d4"), "w")
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "c4"), "w")
+    repertoire.addAlternative(startPosition, "c4")
+    repertoire.deleteMove(startPosition, "e4")
+
+    expect(repertoire.isRepertoireMove(startPosition, "e4")).false
+    expect(repertoire.isRepertoireMove(startPosition, "c4")).true
+    expect(repertoire.isMainMove(startPosition, "e4")).false
+    expect(repertoire.isMainMove(startPosition, "c4")).true
+  })
+  it('Allows removal of an alternative move', () => {
+    let repertoire = createEmptyRepertoire()
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "e4"), "w")
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "d4"), "w")
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "c4"), "w")
+    repertoire.addAlternative(startPosition, "c4")
+
+    expect(repertoire.isRepertoireMove(startPosition, "c4")).true
+    expect(repertoire.isMainMove(startPosition, "e4")).true
+
+    repertoire.removeAlternative(startPosition, "c4")
+    
+    expect(repertoire.isRepertoireMove(startPosition, "c4")).false
+    expect(repertoire.isOpponentMove(startPosition, "c4")).true
+  })
+  it('Setting alternative when there is no main move makes it main move', () => {
+    let repertoire = createEmptyRepertoire()
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "e4"), "b")
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "d4"), "b")
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "c4"), "b")
+
+    repertoire.addAlternative(startPosition, "c4")
+    expect(repertoire.isRepertoireMove(startPosition, "c4")).true
+    expect(repertoire.isMainMove(startPosition, "c4")).true
+  })
+  it('Unsetting main move leaves another move as alternative', () => {
+    let repertoire = createEmptyRepertoire()
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "e4"), "w")
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "d4"), "w")
+    repertoire.addMoveToRepertoire(startPosition, createMoveEvent(startPosition, "c4"), "w")
+
+    repertoire.addAlternative(startPosition, "c4")
+
+    repertoire.setMainMove(startPosition, null)
+    repertoire.setMainMove(startPosition, "e4")
+    repertoire.setMainMove(startPosition, null)
+
+    expect(repertoire.isRepertoireMove(startPosition, "e4")).true
+  })
 })
 
 

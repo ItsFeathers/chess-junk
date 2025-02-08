@@ -74,6 +74,8 @@
                 v-on:shapes="updateShapes"
                 v-on:make-move="makeMove"
                 v-on:selectMove="selectMove"
+                v-on:addAlternative="addAlternative"
+                v-on:removeAlternative= "removeAlternative"
               />
             </v-card>
           </v-window-item>
@@ -117,6 +119,7 @@ import { Position, Repertoire, loadRepertoire } from "./dom/repertoire";
 import { plainToInstance } from "class-transformer";
 import { MoveEvent } from "./dom/moveEvent";
 import { IResult } from "./dom/testResult";
+import { AnnotatedHistory } from "./dom/history";
 
 type Shape = {};
 
@@ -135,14 +138,13 @@ const repertoire = ref(
     },
   }) as Repertoire
 );
-const history = ref([] as MoveEvent[]);
+const history = ref(new AnnotatedHistory());
 const currentPosition = ref("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 const shapes = ref([] as Shape[]);
 const results = ref([] as IResult[]);
-watch;
 const streak = ref(0 as number);
 
-const currentIndex = ref(-1);
+const currentIndex = ref(0);
 const board = ref();
 const repertoireView = ref();
 const mode = ref("teach");
@@ -237,12 +239,12 @@ function isEndOfLine(moveEvent: MoveEvent) {
 
 function loadGame(result: IResult) {
   history.value = result.history;
-  if (result.history.length == 0) {
+  if (result.history.length() == 1) {
     currentPosition.value = STARTING_POSITION;
   } else {
-    currentPosition.value = history.value[history.value.length - 1].after;
+    currentPosition.value = history.value.getLatestPosition().fen;
   }
-  currentIndex.value = history.value.length - 1;
+  currentIndex.value = history.value.getLatestPositionIdx();
   annotations.value = [result.finalMove];
 }
 
@@ -259,6 +261,7 @@ function isFromPlayer(moveEvent: MoveEvent) {
 }
 
 function getComputerReply() {
+  console.log("getting pc move")
   var options = repertoire.value.getOpponentMoves(friendly_current_position.value);
   var option = Math.floor(Math.random() * options.length);
   const reply = options[option];
@@ -284,25 +287,17 @@ function endTest(finalMove: MoveEvent, result: string) {
 }
 
 function clearHistory() {
-  history.value = [];
-  currentIndex.value = -1;
+  history.value = new AnnotatedHistory();
+  currentIndex.value = history.value.getLatestPositionIdx();
   backToBeginning();
 }
 
-function addMoveToHistory(moveEvent: any) {
+function addMoveToHistory(moveEvent: MoveEvent) {
+  history.value.pushMove(moveEvent, currentIndex.value)
   currentIndex.value += 1;
-  if (history.value.length == currentIndex.value) {
-    history.value.push(moveEvent);
-  } else {
-    if (history.value[currentIndex.value].san != moveEvent.san) {
-      history.value = history.value.slice(0, currentIndex.value);
-      history.value.push(moveEvent);
-    }
-  }
 }
 
-watch(
-  () => mode.value,
+watch(() => mode.value,
   (newValue, oldValue) => {
     updateMode(newValue, oldValue);
   }
@@ -316,11 +311,7 @@ function updateMode(_newValue: string, _oldValue: string) {
 }
 
 function playerToMove() {
-  if (history.value.length == 0) {
-    return color.value == "white";
-  } else {
-    return !color.value.startsWith(history.value[history.value.length - 1].color);
-  }
+  return color.value.startsWith(history.value.playerToMove());
 }
 
 function updateRepertoire(newRepertoire: Repertoire) {
@@ -355,12 +346,17 @@ function toFriendlyNotation(fullFen: string) {
 }
 
 function historyClicked(index: number) {
-  currentPosition.value = history.value[index].after;
   currentIndex.value = index;
+
+  let newPos = history.value.getPositionByIdx(currentIndex.value)
+  console.log(index)
+  if (newPos) {
+    currentPosition.value = newPos.fen;
+  }
 }
 
 function backToBeginning() {
-  currentIndex.value = -1;
+  currentIndex.value = 0;
   currentPosition.value = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 }
 
@@ -371,22 +367,28 @@ function back() {
   }
 
   currentIndex.value -= 1;
-  currentPosition.value = history.value[currentIndex.value].after;
+  let newPos = history.value.getPositionByIdx(currentIndex.value)
+  if (newPos) {
+    currentPosition.value = newPos.fen;
+  }
 }
 
 function forward() {
-  if (currentIndex.value >= history.value.length - 1) {
+  if (currentIndex.value > history.value.length() - 1) {
     forwardToEnd();
     return;
   }
-
   currentIndex.value += 1;
-  currentPosition.value = history.value[currentIndex.value].after;
+
+  let newPos = history.value.getPositionByIdx(currentIndex.value)
+  if (newPos) {
+    currentPosition.value = newPos.fen;
+  }
 }
 
 function forwardToEnd() {
-  currentIndex.value = history.value.length - 1;
-  currentPosition.value = history.value[history.value.length - 1].after;
+  currentIndex.value = history.value.getLatestPositionIdx();
+  currentPosition.value = history.value.getLatestPosition().fen;
 }
 
 function deleteMove(san: string) {
@@ -409,6 +411,16 @@ function lichessOptions(options: String[]) {
 
 function selectMove(san: string) {
   repertoire.value.setMainMove(friendly_current_position.value, san);
+  repertoireView.value.emitShapes();
+}
+
+function addAlternative(san: string) {
+  repertoire.value.addAlternative(friendly_current_position.value, san)
+  repertoireView.value.emitShapes();
+}
+
+function removeAlternative(san: string) {
+  repertoire.value.removeAlternative(friendly_current_position.value, san)
   repertoireView.value.emitShapes();
 }
 

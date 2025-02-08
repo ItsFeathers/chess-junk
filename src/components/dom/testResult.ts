@@ -1,12 +1,16 @@
+import type { AnnotatedHistory } from "./history";
 import type { MoveEvent } from "./moveEvent";
 
 export class IResult {
-    result: number = 0;
-    streak: number = 0;
-    history: MoveEvent[] = [];
+    result: number;
+    streak: number;
+    history: AnnotatedHistory;
     finalMove: MoveEvent;
   
-    constructor() {
-      // this.finalMove = new MoveEvent();
+    constructor(history: AnnotatedHistory, result: number, finalMove: MoveEvent, streak: number) {
+      this.finalMove = finalMove;
+      this.history = history;
+      this.streak = streak;
+      this.result = result;
     }
   }

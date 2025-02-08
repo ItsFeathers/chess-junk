@@ -11,7 +11,7 @@ export enum AnnotationType {
   Played = 1,
   BreaksRepertoire,
   EngineGood,
-  EngineInnacuracy,
+  EngineInaccuracy,
   EngineMistake,
   EngineBlunder
 }
@@ -30,6 +30,7 @@ export class Annotation {
 class AnnotatedPosition {
     fen: string;
     annotations: Annotation[] = []
+    movePlayed: MoveEvent | null = null
     constructor(position: string, annotations: Annotation[]) {
         this.fen = position
         this.annotations = annotations
@@ -37,19 +38,40 @@ class AnnotatedPosition {
 }
 
 export class AnnotatedHistory {
+    getLatestPositionIdx(): any {
+      return this.length() - 1
+    }
+    playerToMove(): string {
+        return this.length() % 2 == 0 ? "black" : "white"
+    }
+    playerToMoveAt(index: number): string {
+        return index % 2 == 1 ? "black" : "white"
+    }
+    clear() {
+        this.positions = [new AnnotatedPosition(startPosition, [])];
+    }
     pushAnnotatedMove(move: MoveEvent, annotations: Annotation[], index: number=-1) {
-        if (index != -1) {
-            let positionAfter = this.positions[index + 1]
+        let lastMove
+        let indexBefore = index 
+        let indexAfter = index + 1 
+
+        if (index != -1 && index < this.length() - 1) {
+            lastMove = index - 1
+            let positionAfter = this.positions[indexAfter]
             let newPositionAfter = toFriendlyNotation(move.after)
             if (newPositionAfter == toFriendlyNotation(positionAfter.fen)) {
                 return
             } else {
-                this.positions = this.positions.slice(index)
+                this.positions = this.positions.slice(0, indexBefore + 1)
             }
+        } else {
+            indexBefore = this.getLatestPositionIdx()
         }
-        this.positions[this.positions.length -1].annotations.push(new Annotation(AnnotationType.Played, move.from, move.to))
+        
+        this.positions[indexBefore].annotations = this.positions[indexBefore].annotations.filter((annotation) => annotation.type != AnnotationType.Played)
+        this.positions[indexBefore].annotations.push(new Annotation(AnnotationType.Played, move.from, move.to))
+        this.positions[indexBefore].movePlayed = move
         this.positions.push(new AnnotatedPosition(toFriendlyNotation(move.after), annotations))
-
     }
     getLatestPosition(): AnnotatedPosition {
         return this.positions[this.positions.length - 1];
@@ -58,8 +80,8 @@ export class AnnotatedHistory {
     startPosition() {
         return startPosition
     }
-    pushMove(move: MoveEvent) {
-        this.pushAnnotatedMove(move, [])
+    pushMove(move: MoveEvent, index=-1) {
+        this.pushAnnotatedMove(move, [], index)
     }
 
     getPositionIndex(idx: number, player: string) {
@@ -74,22 +96,31 @@ export class AnnotatedHistory {
             console.log("Bad player type " + player)
         }
 
-        return idx * 2 + offset
+        return (idx * 2) + offset
     }
 
     positionAt(idx: number, player: string) {
         let positionIndex = this.getPositionIndex(idx, player)
-        console.log(positionIndex)
         return this.positions[positionIndex]
     }
 
     positionAfter(idx: number, player: string) {
         let positionIndex = this.getPositionIndex(idx, player)
-        console.log(positionIndex)
         return this.positions[positionIndex + 1]
+    }
+
+    getPositionByIdx(idx: number) {
+        if (idx >= this.length()) {
+            return null
+        }
+        return this.positions[idx]
     }
 
     getAnnotations(idx: number, player: string) {
         return this.positions[this.getPositionIndex(idx, player)].annotations
+    }
+
+    length() {
+        return this.positions.length
     }
 }

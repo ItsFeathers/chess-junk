@@ -2,9 +2,7 @@
   <v-row class="ma-2">
     <v-col v-for="option in options" :key="option.friendly_notation" cols="2">
       <v-card
-        :class="
-          selection[0]?.friendly_notation == option.friendly_notation ? 'selected' : 'option'
-        "
+        :class="repertoire.isMainMove(currentPosition, option.friendly_notation) ? 'selected' : repertoire.isRepertoireMove(currentPosition, option.friendly_notation) ? 'alternative' : 'option'"
       >
         <v-card-title>{{ option.friendly_notation }}</v-card-title>
         <v-card-actions>
@@ -23,6 +21,11 @@
               density="compact"
               icon="mdi-delete"
               v-on:click="deleteMove(option.friendly_notation)"
+            />
+            <v-btn
+              density="compact"
+              icon="mdi-call-split"
+              v-on:click="addAlternative(option.friendly_notation)"
             />
           </v-btn>
         </v-card-actions>
@@ -45,7 +48,7 @@ const props = defineProps({
     required: true,
   },
 });
-const emit = defineEmits(["makeMove", "selectMove", "deleteMove", "shapes"]);
+const emit = defineEmits(["makeMove", "selectMove", "deleteMove", "shapes", "addAlternative", "removeAlternative"]);
 
 watch(
   () => props.currentPosition,
@@ -82,7 +85,7 @@ function makeMove(san: string) {
 }
 
 function selectMove(san: string) {
-  if (!props.repertoire.isRepertoireMove(friendly_current_position.value, san)) {
+  if (!props.repertoire.isMainMove(friendly_current_position.value, san)) {
     emit("selectMove", san);
   } else {
     emit("selectMove", null);
@@ -91,6 +94,14 @@ function selectMove(san: string) {
 
 function deleteMove(san: string) {
   emit("deleteMove", san);
+}
+
+function addAlternative(san: string) {
+  if (!props.repertoire.isRepertoireMove(friendly_current_position.value, san)) {
+    emit("addAlternative", san);
+  } else {
+    emit("removeAlternative", san);
+  }
 }
 
 type shape = {
@@ -107,8 +118,10 @@ function emitShapes() {
   }
   for (const option of options.value) {
     var optionShape = {} as shape;
-    if (selection.value && selection.value.length && option.friendly_notation == selection.value[0].friendly_notation) {
+    if (props.repertoire.isMainMove(props.currentPosition, option.friendly_notation)) {
       optionShape.brush = "green";
+    } else if (props.repertoire.isRepertoireMove(props.currentPosition, option.friendly_notation)) {
+      optionShape.brush = "yellow";
     } else {
       optionShape.brush = "blue";
     }
@@ -125,6 +138,9 @@ defineExpose({ emitShapes });
 <style lang="css" scoped>
 .selected {
   background-color: #66ff66;
+}
+.alternative {
+  background-color: #FFff66;
 }
 .option {
   background-color: #6666ff;
