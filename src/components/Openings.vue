@@ -6,6 +6,7 @@
         <v-btn icon="mdi-step-backward-2" @click="backToBeginning" />
         <v-btn icon="mdi-step-backward" @click="back" />
         <RepertoireUploader v-on:repertoire="updateRepertoire" />
+        <RepertoireExporter :repertoire="repertoire" />
         <v-btn icon="mdi-step-forward" @click="forward" />
         <v-btn icon="mdi-step-forward-2" @click="forwardToEnd" />
       </v-col>
@@ -14,7 +15,9 @@
     <v-row no-gutters>
       <v-col sm="0" cols="1"></v-col>
       <v-col cols="12" md="2" align="center" justify="center">
-        <Engine v-if="mode != 'test'" :currentPosition="currentPosition" 
+        <Engine
+          v-show="mode != 'test'"
+          :currentPosition="currentPosition"
           v-on:make-move="makeMove"
           v-on:options="engineOptions"
         />
@@ -27,6 +30,7 @@
           :shapes="shapes"
           :player="color"
           :mode="mode"
+          :lock="lock"
         />
       </v-col>
       <v-col cols="6" md="2">
@@ -54,9 +58,8 @@
           />
         </v-col>
       </v-col>
-      {{ testCandidateMoves }}
       <v-col cols="6" md="12">
-        <v-tabs v-model="tab" centered bg-color="primary" >
+        <v-tabs v-model="tab" centered bg-color="primary">
           <v-tab value="repertoire"> Edit Repertoire </v-tab>
           <v-tab value="results"> Test Results </v-tab>
           <v-tab value="lichess"> Lichess Games </v-tab>
@@ -75,7 +78,7 @@
                 v-on:make-move="makeMove"
                 v-on:selectMove="selectMove"
                 v-on:addAlternative="addAlternative"
-                v-on:removeAlternative= "removeAlternative"
+                v-on:removeAlternative="removeAlternative"
               />
             </v-card>
           </v-window-item>
@@ -91,8 +94,8 @@
           </v-window-item>
           <v-window-item :eager="true" value="lichess">
             <v-card>
-              <LichessStats 
-                :repertoire="repertoire" 
+              <LichessStats
+                :repertoire="repertoire"
                 :currentPosition="currentPosition"
                 v-on:options="lichessOptions"
               />
@@ -101,6 +104,7 @@
         </v-window>
       </v-col>
     </v-row>
+    <pre>{{ moveSelector }}</pre>
   </v-container>
 </template>
 
@@ -115,20 +119,17 @@ import RepertoireUploader from "./RepertoireUploader.vue";
 import "vue3-chessboard/style.css";
 import TestResultsPane from "./TestResultsPane.vue";
 import LichessStats from "./LichessStats.vue";
-import { Position, Repertoire, loadRepertoire } from "./dom/repertoire";
+import { Repertoire, loadRepertoire } from "./dom/repertoire";
 import { plainToInstance } from "class-transformer";
 import { MoveEvent } from "./dom/moveEvent";
-import { IResult } from "./dom/testResult";
-import { AnnotatedHistory } from "./dom/history";
+import { IResult, ResultsSummary } from "./dom/testResult";
+import { AnnotatedHistory, Annotation } from "./dom/history";
+import RepertoireExporter from "./RepertoireExporter.vue";
+import { MoveSelector, OptionSet, ProbabilisticMove } from "./dom/moveSelector";
 
 type Shape = {};
 
-class CandidateMoves {
-  engine: null | String[] = null;
-  lichess: null | String[] = null;
-  repertoire: null | String[] = null;
-}
-
+const REPERTOIRE_FACTOR = 0.05
 const STARTING_POSITION = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 const repertoire = ref(
   loadRepertoire({
@@ -136,13 +137,15 @@ const repertoire = ref(
       options: [],
       selection: null,
     },
-  }) as Repertoire
+  })
 );
 const history = ref(new AnnotatedHistory());
 const currentPosition = ref("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 const shapes = ref([] as Shape[]);
 const results = ref([] as IResult[]);
+const testResultSummary = ref(new ResultsSummary([]));
 const streak = ref(0 as number);
+const lock = ref(false);
 
 const currentIndex = ref(0);
 const board = ref();
@@ -152,8 +155,8 @@ const color = ref("white");
 const annotations = ref([] as MoveEvent[]);
 
 const tab = ref("");
-const tabs = ref(["History", "tests", "lichess"]);
-const testCandidateMoves = ref({} as CandidateMoves)
+const moveSelector = ref(new MoveSelector(["repertoire", "lichess", "history"]));
+moveSelector.value.setPrioritySource("repertoire");
 
 const friendly_current_position = computed(() => {
   if (currentPosition.value && repertoire.value) {
@@ -178,7 +181,11 @@ function handleMove(moveEvent: MoveEvent) {
     if (!isFromPlayer(moveEvent)) {
       acceptMove(moveEvent);
       if (isEndOfLine(moveEvent)) {
-        endTest(moveEvent, "Line Completed");
+        lock.value = true;
+        setTimeout(() => {
+          endTest(moveEvent, "End of Line");
+          lock.value = false;
+        }, 2000);
       }
     } else if (
       repertoire.value.isRepertoireMove(friendly_current_position.value, moveEvent.san)
@@ -186,7 +193,11 @@ function handleMove(moveEvent: MoveEvent) {
       streak.value += 1;
       acceptMove(moveEvent);
       if (isEndOfLine(moveEvent)) {
-        endTest(moveEvent, "Line Completed");
+        lock.value = true;
+        setTimeout(() => {
+          endTest(moveEvent, "End of Line");
+          lock.value = false;
+        }, 2000);
       } else {
         getComputerReply();
       }
@@ -208,6 +219,7 @@ function endTesting() {
 }
 
 function rejectMove(moveEvent: MoveEvent) {
+  addMoveToHistory(moveEvent);
   setTimeout(() => {
     board.value.refreshPosition(moveEvent.before);
   }, 0);
@@ -242,17 +254,16 @@ function loadGame(result: IResult) {
   if (result.history.length() == 1) {
     currentPosition.value = STARTING_POSITION;
   } else {
-    currentPosition.value = history.value.getLatestPosition().fen;
+    currentPosition.value = history.value.getPositionByIdx(
+      history.value.getLatestPositionIdx() - 1
+    )?.fen;
   }
-  currentIndex.value = history.value.getLatestPositionIdx();
+  currentIndex.value = history.value.getLatestPositionIdx() - 1;
   annotations.value = [result.finalMove];
 }
 
 function acceptMove(moveEvent: MoveEvent) {
   currentPosition.value = moveEvent.after;
-  testCandidateMoves.value.engine = null
-  testCandidateMoves.value.lichess = null
-  testCandidateMoves.value.repertoire = null
   addMoveToHistory(moveEvent);
 }
 
@@ -260,24 +271,43 @@ function isFromPlayer(moveEvent: MoveEvent) {
   return color.value.startsWith(moveEvent.color);
 }
 
+function moveSourcesFull(): Boolean {
+  return moveSelector.value.isReady(currentPosition.value);
+}
+
+function waitForMoveSelection(callback: () => void) {
+  if (playerToMove()) {
+    return;
+  }
+  if (!moveSourcesFull()) {
+    window.setTimeout(waitForMoveSelection, 100, callback);
+  } else {
+    callback();
+  }
+}
+
 function getComputerReply() {
-  console.log("getting pc move")
-  var options = repertoire.value.getOpponentMoves(friendly_current_position.value);
-  var option = Math.floor(Math.random() * options.length);
-  const reply = options[option];
+  waitForMoveSelection(playComputerMove);
+}
+
+function playComputerMove() {
+  let nextMove = moveSelector.value.getMove(currentPosition.value);
+
   board.value.refreshPosition(currentPosition.value);
-  board.value.playMove(reply.friendly_notation);
+  board.value.playMove(nextMove);
 }
 
 function endTest(finalMove: MoveEvent, result: string) {
-  results.value.push(
-    plainToInstance(IResult, {
-      history: history.value,
-      streak: streak.value,
-      finalMove: finalMove,
-      result: result,
-    })
-  );
+  const resultObject = plainToInstance(IResult, {
+    history: history.value,
+    streak: result == "End of Line" ? streak.value : -streak.value,
+    finalMove: finalMove,
+    result: result,
+    playerColor: color.value,
+  });
+  results.value.push(resultObject);
+  testResultSummary.value.addResult(resultObject, color.value);
+
   streak.value = 0;
   clearHistory();
   updateShapes([]);
@@ -293,11 +323,17 @@ function clearHistory() {
 }
 
 function addMoveToHistory(moveEvent: MoveEvent) {
-  history.value.pushMove(moveEvent, currentIndex.value)
+  let annotation = new Annotation(
+    repertoire.value.evaluate(moveEvent.before, moveEvent.san, color.value),
+    moveEvent.from,
+    moveEvent.to
+  );
+  history.value.pushAnnotatedMove(moveEvent, [annotation], currentIndex.value);
   currentIndex.value += 1;
 }
 
-watch(() => mode.value,
+watch(
+  () => mode.value,
   (newValue, oldValue) => {
     updateMode(newValue, oldValue);
   }
@@ -348,8 +384,7 @@ function toFriendlyNotation(fullFen: string) {
 function historyClicked(index: number) {
   currentIndex.value = index;
 
-  let newPos = history.value.getPositionByIdx(currentIndex.value)
-  console.log(index)
+  let newPos = history.value.getPositionByIdx(currentIndex.value);
   if (newPos) {
     currentPosition.value = newPos.fen;
   }
@@ -367,20 +402,20 @@ function back() {
   }
 
   currentIndex.value -= 1;
-  let newPos = history.value.getPositionByIdx(currentIndex.value)
+  let newPos = history.value.getPositionByIdx(currentIndex.value);
   if (newPos) {
     currentPosition.value = newPos.fen;
   }
 }
 
 function forward() {
-  if (currentIndex.value > history.value.length() - 1) {
+  if (currentIndex.value >= history.value.length() - 1) {
     forwardToEnd();
     return;
   }
   currentIndex.value += 1;
 
-  let newPos = history.value.getPositionByIdx(currentIndex.value)
+  let newPos = history.value.getPositionByIdx(currentIndex.value);
   if (newPos) {
     currentPosition.value = newPos.fen;
   }
@@ -401,12 +436,12 @@ function makeMove(san: string) {
   repertoireView.value.emitShapes();
 }
 
-function engineOptions(options: String[]) {
-  testCandidateMoves.value.engine = options
+function engineOptions(options: OptionSet) {
+  moveSelector.value.pushOptions("engine", options);
 }
 
-function lichessOptions(options: String[]) {
-  testCandidateMoves.value.lichess = options
+function lichessOptions(options: OptionSet) {
+  moveSelector.value.pushOptions("lichess", options);
 }
 
 function selectMove(san: string) {
@@ -415,21 +450,35 @@ function selectMove(san: string) {
 }
 
 function addAlternative(san: string) {
-  repertoire.value.addAlternative(friendly_current_position.value, san)
+  repertoire.value.addAlternative(friendly_current_position.value, san);
   repertoireView.value.emitShapes();
 }
 
 function removeAlternative(san: string) {
-  repertoire.value.removeAlternative(friendly_current_position.value, san)
+  repertoire.value.removeAlternative(friendly_current_position.value, san);
   repertoireView.value.emitShapes();
 }
 
-watch (() => currentPosition.value, (newValue, oldValue) => {
-  let moves = repertoire.value.getOpponentMoves(newValue)
-  testCandidateMoves.value.repertoire = moves.map(function(x) { return x.friendly_notation })
-  testCandidateMoves.value.lichess = null
-  testCandidateMoves.value.engine = null
-})
+watch(
+  () => currentPosition.value,
+  (newValue, oldValue) => {
+    let moves = repertoire.value.getOpponentMoves(newValue);
+    moveSelector.value.pushOptions(
+      "repertoire",
+      new OptionSet(
+        currentPosition.value,
+        20 * REPERTOIRE_FACTOR,
+        moves.map(function (x) {
+          return new ProbabilisticMove(x.friendly_notation, 20);
+        })
+      )
+    );
+    moveSelector.value.pushOptions(
+      "history",
+      testResultSummary.value.getTestOptionSet(newValue, color.value, repertoire.value)
+    );
+  }
+);
 </script>
 
 <style lang="css" scoped>

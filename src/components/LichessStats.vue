@@ -23,6 +23,7 @@ import axios from "axios";
 import { defineProps, watch, ref } from "vue";
 import { Chess } from "chess.js";
 import { Repertoire } from "./dom/repertoire";
+import { OptionSet, ProbabilisticMove } from "./dom/moveSelector";
 
 const props = defineProps({
   repertoire: {
@@ -47,6 +48,7 @@ const props = defineProps({
   },
 });
 
+const LICHESS_FACTOR = 0.01
 const loading = ref(false);
 const positionData = ref({});
 const tableData = ref([]);
@@ -66,25 +68,23 @@ const emit = defineEmits(["options"]);
 async function emitOptions() {
   await getData();
 
-  let san = null;
-
   if (currentPositionTotal.value < props.movesThreshold) {
+    emit("options", new OptionSet(props.currentPosition, Math.log(currentPositionTotal.value), []))  
     return []
   }
 
-  let result = []
+  let moves: ProbabilisticMove[] = []
+  let totalEligiblePercent = 0
   for (let rowIdx = 0; rowIdx < tableData.value.length; ++rowIdx) {
     let probability
     probability = tableData.value[rowIdx].timesPlayed / currentPositionTotal.value
-
     if (probability * 100 > props.percentageThreshold) {
-      san = tableData.value[rowIdx].san;
-      result.push(san)
+      totalEligiblePercent += probability
     }
+    moves.push(new ProbabilisticMove(tableData.value[rowIdx].san, probability))
   }
 
-  emit("options", result)
-  return result;  
+  emit("options", new OptionSet(props.currentPosition, Math.log(currentPositionTotal.value) * LICHESS_FACTOR, moves))  
 }
 
 async function getData() {

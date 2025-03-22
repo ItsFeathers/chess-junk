@@ -140,11 +140,15 @@ function emitOptions() {
   if(validOutputs == null) {
     return
   }
-  let emitval = []
+  let moves: ProbabilisticMove[] = []
   for (let i=0; i < validOutputs.length; ++i) {
-    emitval.push(validOutputs[i].san)
+    var san = validOutputs[i].san
+    if (san == null) {
+      continue
+    }
+    moves.push(new ProbabilisticMove(san, 100.0 / (i + 1)))
   }
-  emit("options", emitval)
+  emit("options", new OptionSet(props.currentPosition, 100, moves))
 }
 
 function doneCalculating() {
@@ -163,7 +167,7 @@ function getEligibleOutputs(outputs: Line[], contempt: number): Line[] | null {
     return null;
   }
   let retval: Line[] = []
-  for (let i=0; i< outputs.length; ++i) {
+  for (let i=0; i < outputs.length; ++i) {
     let comparisonResult = compareOutputs(outputs[i], best, contempt)
     if (comparisonResult != null && comparisonResult >= 0) {
       retval.push(outputs[i])
@@ -268,6 +272,7 @@ watch(
 </script>
 <script lang="ts">
 import { ref } from "vue";
+import { OptionSet, ProbabilisticMove } from "./dom/moveSelector";
 </script>
 
 <style lang="css" scoped></style>

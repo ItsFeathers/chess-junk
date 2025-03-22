@@ -8,12 +8,17 @@ function toFriendlyNotation(fullFen: string) {
 
 const startPosition = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq"
 export enum AnnotationType {
-  Played = 1,
-  BreaksRepertoire,
-  EngineGood,
-  EngineInaccuracy,
-  EngineMistake,
-  EngineBlunder
+  Played = "Played",
+  RepertoireMatch = "RepertoireMatch",
+  RepertoireAlternative = "RepertoireAlternative",
+  BreaksRepertoire = "BreaksRepertoire",
+  EngineGood = "EngineGood",
+  EngineInaccuracy = "EngineInaccuracy",
+  EngineMistake = "EngineMistake",
+  EngineBlunder = "EngineBlunder",
+  RepertoireOpponentMove = "RepertoireOpponentMove",
+  BreaksOpponentRepertoire = "BreaksOpponentRepertoire",
+  NotFound = "NOT FOUND"
 }
 
 export class Annotation {
@@ -27,7 +32,7 @@ export class Annotation {
     }
 }
 
-class AnnotatedPosition {
+export class AnnotatedPosition {
     fen: string;
     annotations: Annotation[] = []
     movePlayed: MoveEvent | null = null
@@ -86,9 +91,9 @@ export class AnnotatedHistory {
 
     getPositionIndex(idx: number, player: string) {
         let offset = 0
-        if (player == "w") {
+        if (player == "w" || player == "white") {
             offset = 0
-        } else if(player == "b") {
+        } else if(player == "b" || player == "black") {
             offset = 1
         } else if(player == "s") {
             offset = 0

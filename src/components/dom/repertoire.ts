@@ -1,5 +1,10 @@
-import { Expose, Transform, Type, plainToClass, plainToInstance } from 'class-transformer';
+import { Type, plainToInstance, instanceToPlain } from 'class-transformer';
+import { AnnotationType } from './history';
+import { createMoveEvent } from './moveEvent';
+import { simplifyFen } from './fenUtils';
+import { mergeMaps } from './utils';
 
+const START_POSITION = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq"
 
 class MoveEvent {
     color: string = "";
@@ -44,8 +49,16 @@ export class PositionMap {
         new Map(Object.entries(jsonRepertoire)).forEach(this.savePosition.bind(this))
     }
 
+    exportToObject() {
+        return instanceToPlain(this.positions)
+    }
+
     savePosition(position: any, key: string, _map: any) {
         this.positions.set(key, plainToInstance(Position, position));
+    }
+
+    exportPosition(position: any, key: string, _map: any) {
+        return instanceToPlain(position)
     }
 
     positions: Map<string, Position> = new Map<string, Position>();
@@ -69,7 +82,7 @@ class Repertoire {
     }
 
     exportToObject() {
-
+        return this.positions.exportToObject()
     }
 
     addMoveToRepertoire(friendlyFenBefore: string, moveEvent: MoveEvent, playerFor: string) {
@@ -94,6 +107,15 @@ class Repertoire {
         const positionAfter = this.getPosition(toFriendlyNotation(moveEvent.after))
         if (!positionAfter) {
             this.addNewPosition(toFriendlyNotation(moveEvent.after))
+        }
+    }
+
+    pushLine(lineSan: string[], player: string) {
+        var currentPosition = START_POSITION
+        for (let idx=0; idx<lineSan.length; idx++) {
+            var moveEvent = createMoveEvent(currentPosition, lineSan[idx])
+            this.addMoveToRepertoire(currentPosition, moveEvent, player)
+            currentPosition = simplifyFen(moveEvent.after)
         }
     }
 
@@ -204,8 +226,8 @@ class Repertoire {
 
         if (!hasMultipleOptions) {
             position.alternative_selections = [position.selection]
-            }
         }
+    }
 
     unsetMainMove(fen: string) {
         const position = this.getPosition(fen)
@@ -250,6 +272,65 @@ class Repertoire {
                 position.selection = position.alternative_selections[0]
             }
         }
+    }
+
+    evaluate(fen: string, san: string, color:string): AnnotationType {
+        
+        let position = this.getPosition(fen)
+        if (!position) {
+            return AnnotationType.NotFound
+        }
+
+        if(!color.startsWith(this.getPlayerToMove(fen)) ) {
+            if (this.isOpponentMove(fen, san)) {
+                return AnnotationType.RepertoireOpponentMove
+            } else {
+                return AnnotationType.BreaksOpponentRepertoire
+            }
+        } else {
+            if (!this.hasPlayerMove(fen)) {
+                return AnnotationType.NotFound
+            }
+            if (this.isMainMove(fen, san)) {
+                return AnnotationType.RepertoireMatch
+            }
+
+            if (this.isRepertoireMove(fen, san)) {
+                return AnnotationType.RepertoireAlternative
+            }
+            return AnnotationType.BreaksRepertoire
+        }
+    }
+
+    getChildPositions(fen: string, color: string, depth=1, depthSoFar=0): Record<number, string[]> {
+        var response : Record<number, string[]> = {}
+
+        if (color.startsWith(this.getPlayerToMove(fen))) {
+            response[depthSoFar] = [fen]
+            depthSoFar += 1
+        }
+
+        var merged: Record<number, string[]> = {}
+        if (depthSoFar <= depth) {
+            var searchSpace = []
+
+            if (color.startsWith(this.getPlayerToMove(fen))) {
+                searchSpace = this.getPlayerMoves(fen)
+            } else {
+                searchSpace = this.getOpponentMoves(fen)
+            }
+            var responses = searchSpace.map((x) => this.getChildPositions(simplifyFen(x.fen_after), color, depth, depthSoFar))
+            merged = mergeMaps(responses)
+        }
+
+        merged = mergeMaps([response, merged])
+
+        return merged
+    }
+
+    getPlayerToMove(fen: string) {
+        var elements = fen.split(" ");
+        return elements[1].trim();    
     }
 
     fixUp() {

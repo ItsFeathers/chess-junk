@@ -17,7 +17,6 @@ function selectFileDialog() {
 
 function selectFile(event: any) {
   var reader = new FileReader();
-
   var file = event.target.files[0]
   reader.readAsText(file);
   reader.onload = () => {
@@ -26,8 +25,4 @@ function selectFile(event: any) {
     emit("repertoire", parsedRepertoire)
   }
 }
-
 </script>
-
-<style lang="css" scoped>
-</style>

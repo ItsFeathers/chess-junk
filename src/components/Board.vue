@@ -7,7 +7,7 @@ import { ref,  defineProps, defineEmits, watch } from 'vue'
 import { BoardApi, TheChessboard, type BoardConfig } from 'vue3-chessboard';
 import 'vue3-chessboard/style.css';
 
-const props = defineProps(['currentPosition', 'shapes', 'mode', 'player']);
+const props = defineProps(['currentPosition', 'shapes', 'mode', 'player', 'lock']);
 const emit = defineEmits(['move']);
 const boardAPI = ref<BoardApi>(undefined)
 const currentPosition = ref(props.currentPosition.value)
@@ -17,8 +17,8 @@ const boardConfig = ref({
   autoCastle: true,
   orientation: props.player,
   movable: {
-    color: props.mode == "teach" ? 'both' : props.player
-  }
+    color : props.lock ? 'none' : props.mode == "teach" ? 'both' : props.player
+  },
 })
 
 
@@ -36,13 +36,14 @@ function drawShapes() {
 }
 
 watch (() => props.player, (newValue, oldValue) => {updateBoard()})
+watch (() => props.lock, (newValue, oldValue) => {updateBoard()})
 function updateBoard() {
   boardConfig.value = {
     coordinates: true,
     autoCastle: true,
     orientation: props.player,
     movable: {
-      color: props.mode == "teach" ? 'both' : props.player
+      color : props.lock ? 'none' : props.mode == "teach" ? 'both' : props.player
     }
   } 
   boardAPI.value.setConfig(boardConfig.value)
