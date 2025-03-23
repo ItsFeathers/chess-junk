@@ -294,7 +294,7 @@ describe('HistoryParser', () => {
     })
     it('Allows saving and reloading of an empty test results history', () => {
         var preSave = new ResultsSummary([])
-        var encoded = preSave.save()
+        var encoded = preSave.exportToObject()
 
         var resultsSummary = loadResultSummary(encoded)
         expect(resultsSummary.getResultsForPosition(startPosition, "w")).toEqual([])
@@ -308,12 +308,27 @@ describe('HistoryParser', () => {
         preSave.addResult(createHistory(["e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5"], "w", -3), "b")
         preSave.addResult(createHistory(["e4", "e5", "Nf3", "Nf6"], "w", -2), "b")
         preSave.addResult(createHistory(["e4", "e5", "Nf3", "Nc6", "Bc4", "Nf6"], "w", 3), "b")
-        var encoded = preSave.save()
+        var encoded = preSave.exportToObject()
 
         var resultsSummary = loadResultSummary(encoded)
         expect(resultsSummary.getResultsForPosition(postE4, "b")).toEqual([-3, -3, -2, 3])
         expect(resultsSummary.getResultsForPosition(postE4E5Nf3, "b")).toEqual([-2, -2, -1, 2])
-        expect(resultsSummary.getResultsForPosition(postE4E5Nf3Nc6Bc4, "b")).toEqual([-1, -1, 1])        
+        expect(resultsSummary.getResultsForPosition(postE4E5Nf3Nc6Bc4, "b")).toEqual([-1, -1, 1])
+    })
+    it('Allows deep loading and saving of populated history', () => {
+        let repertoire = createEmptyRepertoire()
+        repertoire.pushLine(["e4", "a5", "Nc3", "b5", "a3", "f5", "g4"], "w")
+
+        var preSave = new ResultsSummary([])
+        // fully explore one line
+        for (let idx=0; idx<DEFAULT_MAX_HISTORY; idx++) {
+            preSave.addResult(createHistory(["e4", "a5", "Nc3", "b5", "a3", "f5", "g4"], "w", 4), "w")
+        }
+
+        var exported = preSave.exportToObject()
+        var resultsSummary = loadResultSummary(exported)
+        var completeness = resultsSummary.getCompleteness(startPosition, "w", repertoire, 1)
+        expect(completeness).toBeCloseTo(1)
     })
     it('Describes a position as unexplored on an empty test history and default repertoire', () => {
         let repertoire = createEmptyRepertoire()

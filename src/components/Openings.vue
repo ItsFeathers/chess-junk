@@ -5,8 +5,8 @@
       <v-col cols="12" md="6" align="center">
         <v-btn icon="mdi-step-backward-2" @click="backToBeginning" />
         <v-btn icon="mdi-step-backward" @click="back" />
-        <RepertoireUploader v-on:repertoire="updateRepertoire" />
-        <RepertoireExporter :repertoire="repertoire" />
+        <RepertoireUploader v-on:repertoire="updateRepertoire" v-on:test-history="updateTestHistory"/>
+        <RepertoireExporter :repertoire="repertoire" :testResultSummary="testResultSummary" />
         <v-btn icon="mdi-step-forward" @click="forward" />
         <v-btn icon="mdi-step-forward-2" @click="forwardToEnd" />
       </v-col>
@@ -15,12 +15,23 @@
     <v-row no-gutters>
       <v-col sm="0" cols="1"></v-col>
       <v-col cols="12" md="2" align="center" justify="center">
-        <Engine
-          v-show="mode != 'test'"
-          :currentPosition="currentPosition"
-          v-on:make-move="makeMove"
-          v-on:options="engineOptions"
-        />
+        <v-row no-gutters>
+          <Engine
+            v-show="mode != 'test'"
+            :currentPosition="currentPosition"
+            v-on:make-move="makeMove"
+            v-on:options="engineOptions"
+          />
+        </v-row>
+        <v-row no-gutters>
+          <PositionScoring
+            :repertoire="repertoire"
+            :currentPosition="currentPosition"
+            :results-summary="testResultSummary"
+            :player="color"
+          ></PositionScoring>
+
+        </v-row>
       </v-col>
       <v-col cols="12" md="6">
         <Board
@@ -104,7 +115,6 @@
         </v-window>
       </v-col>
     </v-row>
-    <pre>{{ moveSelector }}</pre>
   </v-container>
 </template>
 
@@ -119,6 +129,8 @@ import RepertoireUploader from "./RepertoireUploader.vue";
 import "vue3-chessboard/style.css";
 import TestResultsPane from "./TestResultsPane.vue";
 import LichessStats from "./LichessStats.vue";
+import PositionScoring from "./PositionScoring.vue";
+
 import { Repertoire, loadRepertoire } from "./dom/repertoire";
 import { plainToInstance } from "class-transformer";
 import { MoveEvent } from "./dom/moveEvent";
@@ -353,6 +365,10 @@ function playerToMove() {
 function updateRepertoire(newRepertoire: Repertoire) {
   repertoire.value = newRepertoire;
   repertoireView.value.emitShapes();
+}
+
+function updateTestHistory(newResultsHistory: ResultsSummary) {
+  testResultSummary.value = newResultsHistory
 }
 
 function updateShapes(newShapes: Shape[]) {

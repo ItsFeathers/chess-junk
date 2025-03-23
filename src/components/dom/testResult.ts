@@ -2,7 +2,7 @@ import { instanceToPlain, plainToInstance } from "class-transformer";
 import type { AnnotatedHistory } from "./history";
 import type { MoveEvent } from "./moveEvent";
 import { OptionSet, ProbabilisticMove } from "./moveSelector";
-import type { Repertoire } from "./repertoire";
+import { PositionMap, type Repertoire } from "./repertoire";
 
 export const DEFAULT_MAX_HISTORY=5
 export const SCORE_FACTOR=0.3
@@ -33,12 +33,25 @@ function simplifyFen(fen: string) {
   return sanitized;
 }
 
-export function loadResultSummary(save: Record<string, any>) {
-  return plainToInstance(ResultsSummary, save)
+export function loadResultSummary(save: Record<string, any>): ResultsSummary {
+  var loaded = plainToInstance(ResultsSummary, save)
+
+  var blackMap: Record<string, PositionRecord> = loaded.positionMapBlack
+  for (let key in blackMap) {
+    blackMap[key] = plainToInstance(PositionRecord, blackMap[key])
+  }
+
+  var whiteMap: Record<string, PositionRecord> = loaded.positionMapWhite
+  for (let key in whiteMap) {
+    whiteMap[key] = plainToInstance(PositionRecord, whiteMap[key])
+  }
+
+
+  return loaded
 }
 
 export class ResultsSummary {
-  save(): Record<string, any> {
+  exportToObject(): Record<string, any> {
     return instanceToPlain(this)
   }
   getTestOptionSet(fen: string, color: string, repertoire: Repertoire): OptionSet {
@@ -49,7 +62,7 @@ export class ResultsSummary {
     for (let idx=0; idx<options.length; idx++) {
       var fenAfter = simplifyFen(options[idx].fen_after);
 
-      var completeness = this.getCompleteness(fenAfter, color, repertoire)
+      var completeness = this.getCompleteness(fenAfter, color, repertoire, 4)
       if (isNaN(completeness)) {
         console.log("NAN score")
       }
@@ -131,7 +144,7 @@ export class ResultsSummary {
       console.log ("nanscore")
     }
 
-    // scale results based on remaining
+    console.log("Fen: ", fen, " Score ", score)
 
     return score
   }
