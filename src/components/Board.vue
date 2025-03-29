@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref,  defineProps, defineEmits, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { BoardApi, TheChessboard, type BoardConfig } from 'vue3-chessboard';
 import 'vue3-chessboard/style.css';
 

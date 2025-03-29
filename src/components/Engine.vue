@@ -21,7 +21,7 @@
 
 <script setup lang="ts">
 import { Chess } from "chess.js";
-import { defineProps, watch, defineEmits } from "vue";
+import { watch} from "vue";
 const emit = defineEmits(["makeMove", "shapes", "options"]);
 
 const props = defineProps({

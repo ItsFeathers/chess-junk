@@ -20,7 +20,7 @@
 
 <script setup lang="ts">
 import axios from "axios";
-import { defineProps, watch, ref } from "vue";
+import { watch, ref } from "vue";
 import { Chess } from "chess.js";
 import { Repertoire } from "./dom/repertoire";
 import { OptionSet, ProbabilisticMove } from "./dom/moveSelector";

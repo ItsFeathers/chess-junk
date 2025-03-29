@@ -12,7 +12,6 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits } from 'vue';
 import { OptionSet, ProbabilisticMove } from './dom/moveSelector';
 import { ResultsSummary } from './dom/testResult';
 const props = defineProps(['history', 'currentIndex', 'results'])

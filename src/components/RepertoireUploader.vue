@@ -4,7 +4,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, defineProps, defineEmits } from "vue";
+import { ref, onMounted } from "vue";
 import { loadRepertoire } from "./dom/repertoire";
 import { loadResultSummary } from "./dom/testResult";
 

@@ -20,7 +20,7 @@
 import { computed } from "vue";
 import { Repertoire } from "./dom/repertoire";
 import { ResultsSummary } from "./dom/testResult";
-import { getPlayerToMove } from "./dom/fenUtils";
+import { getPlayerToMove, simplifyFen } from "./dom/fenUtils";
   
 const props = defineProps({
     repertoire: {
@@ -44,7 +44,7 @@ const props = defineProps({
 const score = computed(() => {
     console.log("recompute")
     // if (getPlayerToMove(props.currentPosition) == props.player) {
-    return props.resultsSummary.getCompleteness(props.currentPosition, props.player, props.repertoire, 4);
+    return props.resultsSummary.getCompleteness(simplifyFen(props.currentPosition), props.player, props.repertoire, 4);
 });
 
 

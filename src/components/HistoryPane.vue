@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, defineEmits, computed } from 'vue';
+import { computed } from 'vue';
 import { AnnotatedHistory, AnnotatedPosition, AnnotationType } from './dom/history';
 const props = defineProps({
   'history': {

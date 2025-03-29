@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { watch, defineProps, defineEmits, computed } from "vue";
+import { watch, computed } from "vue";
 import { Repertoire } from "./dom/repertoire";
 
 const props = defineProps({
